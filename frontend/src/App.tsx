@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
-import { createChart, IChartApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts'
+import { createChart, IChartApi, CandlestickData, HistogramData, Time, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -13,9 +13,36 @@ interface StockDataPoint {
   volume: number
 }
 
+interface KPIs {
+  current_price: number
+  daily_change: number
+  daily_change_pct: number
+  fifty_two_week_high: number | null
+  fifty_two_week_low: number | null
+  avg_volume: number
+  market_cap: number | null
+}
+
 interface StockResponse {
   ticker: string
   data: StockDataPoint[]
+  kpis: KPIs
+}
+
+function formatNumber(value: number | null | undefined): string {
+  if (value == null) return 'N/A'
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
+  return value.toLocaleString()
+}
+
+function formatVolume(value: number | null | undefined): string {
+  if (value == null) return 'N/A'
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`
+  return value.toLocaleString()
 }
 
 function App() {
@@ -45,7 +72,7 @@ function App() {
 
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height: 500,
       layout: {
         background: { color: '#1f2937' },
         textColor: '#d1d5db',
@@ -58,6 +85,9 @@ function App() {
         mode: 1,
       },
       timeScale: {
+        borderColor: '#4b5563',
+      },
+      rightPriceScale: {
         borderColor: '#4b5563',
       },
     })
@@ -82,6 +112,28 @@ function App() {
     }))
 
     candlestickSeries.setData(chartData)
+
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: 'volume',
+    })
+
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+    })
+
+    const volumeData: HistogramData<Time>[] = stockData.data.map((item) => ({
+      time: item.date as Time,
+      value: item.volume,
+      color: item.close >= item.open ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+    }))
+
+    volumeSeries.setData(volumeData)
     chart.timeScale().fitContent()
 
     const handleResize = () => {
@@ -128,6 +180,9 @@ function App() {
       setLoading(false)
     }
   }
+
+  const kpis = stockData?.kpis
+  const isPositive = kpis ? kpis.daily_change >= 0 : false
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -184,6 +239,31 @@ function App() {
             </div>
           )}
         </div>
+
+        {kpis && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-gray-800 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">Current Price</p>
+              <p className="text-2xl font-bold">${kpis.current_price.toFixed(2)}</p>
+              <p className={`text-sm font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                {isPositive ? '+' : ''}{kpis.daily_change.toFixed(2)} ({isPositive ? '+' : ''}{kpis.daily_change_pct.toFixed(2)}%)
+              </p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">52-Week High / Low</p>
+              <p className="text-lg font-bold text-green-400">{kpis.fifty_two_week_high != null ? `$${kpis.fifty_two_week_high.toFixed(2)}` : 'N/A'}</p>
+              <p className="text-lg font-bold text-red-400">{kpis.fifty_two_week_low != null ? `$${kpis.fifty_two_week_low.toFixed(2)}` : 'N/A'}</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">Avg Volume</p>
+              <p className="text-2xl font-bold">{formatVolume(kpis.avg_volume)}</p>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">Market Cap</p>
+              <p className="text-2xl font-bold">{formatNumber(kpis.market_cap)}</p>
+            </div>
+          </div>
+        )}
         
         <div className="bg-gray-800 rounded-lg p-6" style={{ display: stockData ? 'block' : 'none' }}>
           <h2 className="text-xl font-semibold mb-4">
