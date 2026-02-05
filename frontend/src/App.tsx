@@ -30,10 +30,17 @@ function App() {
   const chartRef = useRef<IChartApi | null>(null)
 
   useEffect(() => {
-    if (!chartContainerRef.current || !stockData || stockData.data.length === 0) return
+    if (!chartContainerRef.current || !stockData || stockData.data.length === 0) {
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+      }
+      return
+    }
 
     if (chartRef.current) {
       chartRef.current.remove()
+      chartRef.current = null
     }
 
     const chart = createChart(chartContainerRef.current, {
@@ -78,7 +85,7 @@ function App() {
     chart.timeScale().fitContent()
 
     const handleResize = () => {
-      if (chartContainerRef.current) {
+      if (chartContainerRef.current && chartRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth })
       }
     }
@@ -87,7 +94,10 @@ function App() {
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      chart.remove()
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+      }
     }
   }, [stockData])
 
@@ -175,14 +185,12 @@ function App() {
           )}
         </div>
         
-        {stockData && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              {stockData.ticker} Stock Price
-            </h2>
-            <div ref={chartContainerRef} className="w-full" />
-          </div>
-        )}
+        <div className="bg-gray-800 rounded-lg p-6" style={{ display: stockData ? 'block' : 'none' }}>
+          <h2 className="text-xl font-semibold mb-4">
+            {stockData ? stockData.ticker : ''} Stock Price
+          </h2>
+          <div ref={chartContainerRef} className="w-full" />
+        </div>
       </div>
     </div>
   )
