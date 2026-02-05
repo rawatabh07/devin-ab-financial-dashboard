@@ -58,7 +58,24 @@ def get_stock_data(request: StockRequest):
                 "volume": int(row["Volume"])
             })
         
-        return {"ticker": request.ticker.upper(), "data": candlestick_data}
+        info = ticker.info
+        latest_close = candlestick_data[-1]["close"]
+        prev_close = candlestick_data[-2]["close"] if len(candlestick_data) >= 2 else latest_close
+        daily_change = round(latest_close - prev_close, 2)
+        daily_change_pct = round((daily_change / prev_close) * 100, 2) if prev_close != 0 else 0.0
+        avg_volume = int(sum(d["volume"] for d in candlestick_data) / len(candlestick_data))
+
+        kpis = {
+            "current_price": latest_close,
+            "daily_change": daily_change,
+            "daily_change_pct": daily_change_pct,
+            "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
+            "avg_volume": avg_volume,
+            "market_cap": info.get("marketCap"),
+        }
+
+        return {"ticker": request.ticker.upper(), "data": candlestick_data, "kpis": kpis}
     
     except HTTPException:
         raise
