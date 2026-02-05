@@ -22,6 +22,14 @@ This financial dashboard allows users to:
 - **Tailwind CSS** - Styling
 - **Lightweight Charts** - Candlestick chart visualization
 
+## Screenshots
+
+### Dashboard Input Form
+![Dashboard Input Form](screenshots/dashboard-empty.png)
+
+### Candlestick Chart (AAPL)
+![Candlestick Chart](screenshots/dashboard-candlestick.png)
+
 ## Getting Started
 
 ### Backend Setup
